@@ -1,8 +1,8 @@
 /**
- * 
+ *
  * Modifications Copyright 2015 David Kopczyk. All rights reserved.
  * Adapted from LiferayBeaconsModule.java authored by James Falkner
- * 
+ *
  * Copyright 2015 Liferay, Inc. All rights reserved.
  * http://www.liferay.com
  *
@@ -60,11 +60,11 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 	private static BeaconTransmitter beaconTransmitter;
 	private static BeaconManager beaconManager;
 	private boolean autoRange = true;
-	
+
 	// Standard Debugging variables
 	private static final String LCAT = "AltbeaconModule";
 	private static final boolean DBG = TiConfig.LOGD;
-	
+
 	private static double PROXIMITY_IMMEDIATE = 0.3;
 	private static double PROXIMITY_NEAR = 3.0;
 	private static double PROXIMITY_FAR = 10.0;
@@ -77,27 +77,27 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 		super();
 		Log.d(LCAT, "Constructor");
 	}
-	
+
 	@Kroll.onAppCreate
 	public static void onAppCreate(TiApplication app)
 	{
 		Log.d(LCAT, "inside onAppCreate");
 		// put module init code that needs to run when the application is created
-		
+
 		beaconManager = BeaconManager.getInstanceForApplication(app);
-		
+
 		//Set BeaconLayout for the beacon manager - this must be done before the service is bound
 		//See: https://github.com/AltBeacon/android-beacon-library/issues/100
 		//addBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24");
-		
+
 		beaconManager.setForegroundScanPeriod(1200);
 		beaconManager.setForegroundBetweenScanPeriod(2300);
 		beaconManager.setBackgroundScanPeriod(10000);
 		beaconManager.setBackgroundBetweenScanPeriod(60 * 1000);
-		
+
 		//BeaconManager.setDebug(true);
 	}
-	
+
 	/**
 	 * See if Bluetooth 4.0 & LE is available on device
 	 *
@@ -111,7 +111,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 			return false;
 		}
 	}
-	
+
 	/**
 	 * Binds the activity to the Beacon Service
 	 */
@@ -162,7 +162,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 	{
 		setAutoRange(false);
 	}
-	
+
 	/**
 	 * Turns auto ranging on or off. See description of enableAutoRanging for more details.
 	 *
@@ -202,7 +202,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 		beaconManager.setBackgroundScanPeriod(backgroundScanPeriod);
 		beaconManager.setBackgroundBetweenScanPeriod(backgroundBetweenScanPeriod);
 	}
-	
+
 	/**
 	 * Start monitoring a region.
 	 * @param region the region to monitor, expected to be a property dictionary from javascript code.
@@ -228,7 +228,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 			Identifier id2 = (major == null) ? null : Identifier.fromInt(major);
 			Identifier id3 = (minor == null) ? null : Identifier.fromInt(minor);
 			//Region r = new Region(identifier, uuid, major, minor);
-			
+
 			Region r = new Region(identifier, id1, id2, id3);
 
 			Log.d(LCAT, "Beginning to monitor region " + r);
@@ -250,7 +250,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 	public void startRangingForBeacons(Object region) {
 		startRangingForRegion(region);
 	}
-	
+
 	/**
 	 * Start ranging a region. You can only range regions into which you have entered.
 	 *
@@ -277,16 +277,46 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 			Identifier id2 = (major == null) ? null : Identifier.fromInt(major);
 			Identifier id3 = (minor == null) ? null : Identifier.fromInt(minor);
 			//Region r = new Region(identifier, uuid, major, minor);
-			
+
 			Region r = new Region(identifier, id1, id2, id3);
-			
+
 			Log.d(LCAT, "Beginning to monitor region " + r);
 			beaconManager.startRangingBeaconsInRegion(r);
 		} catch (RemoteException ex) {
 			Log.e(LCAT, "Cannot start ranging region " + TiConvert.toString(region, "identifier"), ex);
 		}
 	}
-	
+
+	/**
+	 * Stop monitoring a single region
+	 */
+	@Kroll.method
+	public void stopMonitoringForRegion(Object region)
+	{
+		Log.d(LCAT, "stopMonitoringForRegion" + region);
+
+		try {
+			HashMap<String, Object> dict = (HashMap<String, Object>)region;
+
+			String identifier = dict.get("identifier").toString(); //TiConvert.toString(dict, "identifier");
+			String uuid = dict.get("uuid").toString(); //TiConvert.toString(dict, "uuid").toLowerCase();
+			Integer major = (dict.get("major") != null) ? TiConvert.toInt(dict, "major") : null;
+			Integer minor = (dict.get("minor") != null) ? TiConvert.toInt(dict, "minor") : null;
+
+			Identifier id1 = Identifier.parse(uuid);
+			Identifier id2 = (major == null) ? null : Identifier.fromInt(major);
+			Identifier id3 = (minor == null) ? null : Identifier.fromInt(minor);
+			//Region r = new Region(identifier, uuid, major, minor);
+
+			Region r = new Region(identifier, id1, id2, id3);
+
+			beaconManager.stopMonitoringBeaconsInRegion(r);
+		} catch (RemoteException ex) {
+			Log.e(LCAT, "Cannot stop monitoring for region " + TiConvert.toString(region, "identifier"), ex);
+		}
+
+	}
+
 	/**
 	 * Stop monitoring everything.
 	 */
@@ -308,6 +338,36 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 	}
 
 	/**
+	 * Stop ranging for a single beacon
+	 */
+	@Kroll.method
+	public void stopRangingForBeacons(Object region)
+	{
+		Log.d(LCAT, "stopRangingForBeacons");
+
+		try{
+			HashMap<String, Object> dict = (HashMap<String, Object>)region;
+
+			String identifier = dict.get("identifier").toString(); //TiConvert.toString(dict, "identifier");
+			String uuid = dict.get("uuid").toString(); //TiConvert.toString(dict, "uuid").toLowerCase();
+			Integer major = (dict.get("major") != null) ? TiConvert.toInt(dict, "major") : null;
+			Integer minor = (dict.get("minor") != null) ? TiConvert.toInt(dict, "minor") : null;
+
+			Identifier id1 = Identifier.parse(uuid);
+			Identifier id2 = (major == null) ? null : Identifier.fromInt(major);
+			Identifier id3 = (minor == null) ? null : Identifier.fromInt(minor);
+			//Region r = new Region(identifier, uuid, major, minor);
+
+			Region r = new Region(identifier, id1, id2, id3);
+
+			beaconManager.stopRangingBeaconsInRegion(r);
+			Log.d(LCAT, "Stopped ranging beacon " + r);
+		} catch (RemoteException ex) {
+			Log.e(LCAT, "Cannot stop ranging beacon " + r.getUniqueId(), ex);
+		}
+	}
+
+	/**
 	 * Stop ranging for everything.
 	 */
 	@Kroll.method
@@ -325,7 +385,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 			}
 		}
 	}
-	
+
 	/**
 	 * Add BeaconParser described by layout to the manager
 	 */
@@ -342,7 +402,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 		}
 		return result;
 	}
-	
+
 	/**
 	 * Remove BeaconParser described by layout from the manager
 	 */
@@ -356,9 +416,9 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 		if (layout != null) {
 			beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout(layout));
 		}
-		
+
 	}
-	
+
 	@Override
 	public void onStart(Activity activity)
 	{
@@ -392,7 +452,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 		//if (!beaconManager.isBound(this)) {
 		//	beaconManager.bind(this);
 		//}
-		
+
 		super.onPause(activity);
 	}
 
@@ -408,7 +468,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 
 		super.onResume(activity);
 	}
-	
+
 	@Override
 	public void onDestroy(Activity activity)
 	{
@@ -422,7 +482,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 		}
 		super.onDestroy(activity);
 	}
-	
+
 	public void onBeaconServiceConnect() {
 
 		Log.d(LCAT, "onBeaconServiceConnect");
@@ -510,7 +570,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 
 		});
 	}
-	
+
 	/**
 	 * Sets the upper proximity ranges.
 	 */
@@ -522,7 +582,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 		PROXIMITY_NEAR = TiConvert.toDouble(dict, "near");
 		PROXIMITY_IMMEDIATE = TiConvert.toDouble(dict, "immediate");
 	}
-	
+
 	public static String getProximityName(double d) {
 		if (d <= PROXIMITY_IMMEDIATE) {
 			return "immediate";
@@ -534,7 +594,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 			return "unknown";
 		}
 	}
-	
+
 	/**
 	 * Checks to see if Altbeacon advertisement/transmission is supported on the device
 	 */
@@ -542,7 +602,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 	public boolean isTransmissionSupported() {
 		return (BeaconTransmitter.checkTransmissionSupported(getApplicationContext()) == BeaconTransmitter.SUPPORTED);
 	}
-	
+
 	/**
 	 * Creates a new Altbeacon advertisement - COMPLETELY UNTESTED
 	 * Code adapted from http://altbeacon.github.io/android-beacon-library/beacon-transmitter.html
@@ -550,13 +610,13 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 	@Kroll.method
 	public void startBeaconAdvertisement(Object beaconData) {
 		HashMap<String, Object> dict = (HashMap<String, Object>) beaconData;
-		
+
 		String id1 = TiConvert.toString(dict, "uuid");
 		String id2 = TiConvert.toString(dict, "major");
 		String id3 = TiConvert.toString(dict, "minor");
 		int mfrID = TiConvert.toInt(dict, "mfrid");
 		int txPower = TiConvert.toInt(dict, "txpower");
-		
+
 		Builder builder = new Beacon.Builder().setId1(id1).setId2(id2).setId3(id3).setManufacturer(mfrID).setTxPower(txPower);
 		Object[] dataObj = (Object[])dict.get("data");
 		if (dataObj != null) {
@@ -567,14 +627,14 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 			}
 			builder.setDataFields(data);
 		}
-		
+
 		String layout = TiConvert.toString(dict, "layout");
 		BeaconParser parser = new BeaconParser().setBeaconLayout(layout);
 		beaconTransmitter = new BeaconTransmitter(getApplicationContext(), parser);
-		
+
 		beaconTransmitter.startAdvertising(builder.build());
 	}
-	
+
 	/**
 	 * Stops the advertised beacon(s) - COMPLETELY UNTESTED
 	 */
