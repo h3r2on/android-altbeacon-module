@@ -363,7 +363,7 @@ public class AndroidAltbeaconModuleModule extends KrollModule implements BeaconC
 			beaconManager.stopRangingBeaconsInRegion(r);
 			Log.d(LCAT, "Stopped ranging beacon " + r);
 		} catch (RemoteException ex) {
-			Log.e(LCAT, "Cannot stop ranging beacon " + r.getUniqueId(), ex);
+			Log.e(LCAT, "Cannot stop ranging beacon", ex);
 		}
 	}
 
